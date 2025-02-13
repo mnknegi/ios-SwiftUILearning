@@ -58,7 +58,8 @@ struct MovieListScreen: View {
             } //: VSTACK
             .onAppear {
                 // will this hit the api everytime when code modified.
-                viewModel.fetchMovies(for: "Batman")
+//                viewModel.fetchMovies(for: "Batman")
+                viewModel.fetchMoviesUsingCombine(for: "Batman")
             }
             .padding()
             .navigationTitle("Movies")

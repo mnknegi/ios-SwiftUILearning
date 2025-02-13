@@ -6,12 +6,14 @@
 //
 
 import Foundation
+import Combine
 
 protocol MovieCoordinating {
     func fetchMovies(with request: URLRequest, completion: @escaping (Result<[Movie], NetworkError>) -> Void)
+    func fetchMoviesUsingCombine(with request: URLRequest, viewModel: MovieListViewModel)
 }
 
-final class MovieCoordinator: MovieCoordinating {
+final class MovieCoordinator: @preconcurrency MovieCoordinating {
 
     let service: ServiceProviding
 
@@ -29,5 +31,19 @@ final class MovieCoordinator: MovieCoordinating {
                 completion(.failure(error))
             }
         }
+    }
+
+    @MainActor func fetchMoviesUsingCombine(with request: URLRequest, viewModel: MovieListViewModel) {
+        self.service.performUsingCombine(request)
+            .sink { completion in
+                switch completion {
+                case .failure(let error):
+                    print("Combine function error in Coordinator: \(error).")
+                case .finished:
+                    print("fetch finished using combine.")
+                }
+            } receiveValue: { (response: MovieResponse) in
+                viewModel.update(response.search)
+            }.store(in: &viewModel.cancellable)
     }
 }

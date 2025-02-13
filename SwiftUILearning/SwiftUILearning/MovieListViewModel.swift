@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 // Alternative ways to prevent background UI refresh
 @MainActor
@@ -16,18 +17,24 @@ final class MovieListViewModel: ObservableObject {
 
     private let coordinator: MovieCoordinating
 
+    var cancellable = Set<AnyCancellable>()
+
     init(coordinator: MovieCoordinating = MovieCoordinator()) {
         self.coordinator = coordinator
     }
 
-    // Difference between URL and URLRequest
-    func fetchMovies(for title: String) {
+    func makeURLRequest(title: String) -> URLRequest? {
         guard let url = URL(string:"https://www.omdbapi.com/?s=%5C\(title)&page=1&apikey=5c248545") else {
-            return
+            return nil
         }
 
-        let urlRequest = URLRequest(url: url)
-        self.coordinator.fetchMovies(with: urlRequest) { result in
+        return URLRequest(url: url)
+    }
+
+    // Difference between URL and URLRequest
+    func fetchMovies(for title: String) {
+        let urlRequest = self.makeURLRequest(title: title)
+        self.coordinator.fetchMovies(with: urlRequest!) { result in
             switch result {
             case .success(let movies):
                 self.movies = movies.map { MovieRowModel.init(movie: $0) }
@@ -35,6 +42,18 @@ final class MovieListViewModel: ObservableObject {
                 print("show alert Something went wrong. Please try again after some time.", error.localizedDescription)
             }
         }
+    }
+}
+
+// MARK: - Combine
+extension MovieListViewModel {
+    func fetchMoviesUsingCombine(for title: String) {
+        let urlRequest = self.makeURLRequest(title: title)
+        self.coordinator.fetchMoviesUsingCombine(with: urlRequest!, viewModel: self)
+    }
+
+    func update(_ movies: [Movie]) {
+        self.movies = movies.map { MovieRowModel(movie: $0) }
     }
 }
 

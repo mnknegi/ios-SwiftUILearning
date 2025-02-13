@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 enum NetworkError: Error {
     case unknown
@@ -17,6 +18,7 @@ enum NetworkError: Error {
 
 protocol ServiceProviding {
     func perform<T: Decodable>(_ request: URLRequest, completion: @escaping (Result<T, NetworkError>) -> Void)
+    func performUsingCombine<T: Decodable>(_ request: URLRequest) -> AnyPublisher<T, Error>
 }
 
 final class Service: ServiceProviding {
@@ -54,5 +56,20 @@ final class Service: ServiceProviding {
         }
 
         task.resume()
+    }
+
+    func performUsingCombine<T: Decodable>(_ request: URLRequest) -> AnyPublisher<T, Error> {
+        self.session.dataTaskPublisher(for: request)
+            .map { $0.data }
+            .decode(type: T.self, decoder: JSONDecoder())
+            .mapError({ error in
+                if let error = error as? URLError {
+                    return NetworkError.badResponse
+                } else {
+                    return NetworkError.badDecoding
+                }
+            })
+            .receive(on: DispatchQueue.main)
+            .eraseToAnyPublisher()
     }
 }
